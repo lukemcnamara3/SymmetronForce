@@ -16,92 +16,134 @@ import math
 
 h1 = 0.01
 
-
-
-
 m = 0.5
 c = 1
-v = np.sqrt(m**2/c)
-p= 2.5
+v = np.sqrt(m**2 / c)
+p = 2.5
 
 
 def correct_Newton(k, mass, coupling_constant, density, h, density_index):
-    
-    v = np.sqrt((mass**2)/coupling_constant) #computing the VEV
-    x = np.arange(0.01, 100+h, h) #domain chosen in here 
+    """
+    Solve the nonlinear finite-difference equations using Newton's method.
+
+    Parameters:
+        k : int
+            Number of Newton iterations.
+        mass : float
+            Mass parameter.
+        coupling_constant : float
+            Coupling constant.
+        density : float
+            Density inside the source region.
+        h : float
+            Grid spacing.
+        density_index : int
+            Grid index where the density term switches off.
+
+    Returns:
+        u : ndarray
+            Numerical solution for the field profile.
+    """
+
+    # Compute the vacuum expectation value (VEV)
+    v = np.sqrt((mass**2) / coupling_constant)
+
+    # Define the radial computational domain
+    x = np.arange(0.01, 100 + h, h)
     n = len(x)
-    u = np.zeros(n) 
-    
-    for i in range(n):
-        u[i] = v #trial function encoded here 
-       
-    
-    for iter in range(k):
-        J = np.zeros((n,n), dtype = float)
+
+    # Initialise the Newton iteration with the constant solution u = v
+    u = np.full(n, v)
+
+    for iteration in range(k):
+
+        # Initialise Jacobian matrix and residual vector
+        J = np.zeros((n, n), dtype=float)
         G = np.zeros(n)
-        
-        G[0] = density*u[0] + (coupling_constant)*(u[0]**3) - (mass**2)*u[0] 
-        G[n-1] = (coupling_constant)*(u[n-1]**3) - mass**2*u[n-1] - (1/h**2)*(u[n-2] - 2*u[n-1] + v) - (1/(h*x[n-1]))*(v - u[n-2])
-        #The RHS boundary conditions of the nonlinear ODE 
-        
+
+        # Residual equation at the left boundary
+        G[0] = density*u[0] + coupling_constant*u[0]**3 - mass**2*u[0]
+
+        # Residual equation at the right boundary
+        G[n-1] = (coupling_constant*u[n-1]**3
+                  - mass**2*u[n-1]
+                  - (1/h**2)*(u[n-2] - 2*u[n-1] + v)
+                  - (1/(h*x[n-1]))*(v - u[n-2]))
+
+        # Residual equations inside the density region (r < R)
         for i in range(1, math.floor(density_index)):
-            G[i] = density*u[i] + (coupling_constant)*(u[i]**3) - ((mass**2)*u[i]) - (1/h**2)*(u[i-1] - 2*u[i] + u[i+1]) - (1/(h*x[i]))*(u[i+1]-u[i-1])
-            
-        for j in range(math.floor(density_index),n-1):
-            G[j] = (coupling_constant)*(u[j]**3) - ((mass**2)*u[j]) - (1/h**2)*(u[j-1] - 2*u[j] + u[j+1]) - (1/(h*x[j]))*(u[j+1]-u[j-1])
-        #density is encoded here as a switch- on in values of r<R and off otherwise 
-        
-        J[0,0] = -3/(h**2) + mass**2 - density - (coupling_constant*3)*(u[0]**2) 
-        J[0,1] = 3/(h**2)
+            G[i] = (density*u[i]
+                    + coupling_constant*u[i]**3
+                    - mass**2*u[i]
+                    - (1/h**2)*(u[i-1] - 2*u[i] + u[i+1])
+                    - (1/(h*x[i]))*(u[i+1] - u[i-1]))
 
-        
-        J[n-1,n-1] = -2/(h**2) + (mass**2) - ((coupling_constant*3)*(u[n-1]**2))
-        J[n-1,n-2] = 1/h**2 - 1/(h*x[n-1])
-        #boundary values for the Jacobian 
-        
-        for l in range(1, math.floor(density_index)):
-            J[l,l] = -2/(h**2) + (mass**2- density-(coupling_constant*3)*(u[l]**2))
-            J[l,l+1] = 1/h**2 +1/(x[l]*h)
-            J[l,l-1] = 1/h**2 -1/(x[l]*h)
-        
-        for k in range(math.floor(density_index), n-1):
-            J[k,k] = -2/(h**2) + (mass**2 - (coupling_constant*3)*(u[k]**2))
-            J[k,k+1] = 1/h**2 +1/(x[k]*h)
-            J[k,k-1] = 1/h**2 -1/(x[k]*h)
-        #general values for the Jacobian matrix     
-        
-        correction = np.linalg.solve(J,G)
-        #correction solved using program from numpy
+        # Residual equations outside the density region (r > R)
+        for i in range(math.floor(density_index), n-1):
+            G[i] = (coupling_constant*u[i]**3
+                    - mass**2*u[i]
+                    - (1/h**2)*(u[i-1] - 2*u[i] + u[i+1])
+                    - (1/(h*x[i]))*(u[i+1] - u[i-1]))
+
+        # Jacobian entries for the left boundary equation
+        J[0, 0] = -3/(h**2) + mass**2 - density - 3*coupling_constant*u[0]**2
+        J[0, 1] = 3/(h**2)
+
+        # Jacobian entries for the right boundary equation
+        J[n-1, n-1] = -2/(h**2) + mass**2 - 3*coupling_constant*u[n-1]**2
+        J[n-1, n-2] = 1/h**2 - 1/(h*x[n-1])
+
+        # Jacobian inside the density region
+        for i in range(1, math.floor(density_index)):
+            J[i, i] = -2/(h**2) + mass**2 - density - 3*coupling_constant*u[i]**2
+            J[i, i+1] = 1/h**2 + 1/(x[i]*h)
+            J[i, i-1] = 1/h**2 - 1/(x[i]*h)
+
+        # Jacobian outside the density region
+        for i in range(math.floor(density_index), n-1):
+            J[i, i] = -2/(h**2) + mass**2 - 3*coupling_constant*u[i]**2
+            J[i, i+1] = 1/h**2 + 1/(x[i]*h)
+            J[i, i-1] = 1/h**2 - 1/(x[i]*h)
+
+        # Solve the Newton system J * correction = G
+        correction = np.linalg.solve(J, G)
+
+        # Update the solution
         u = u + correction
-        
-    return u #corrected solution returned 
+
+    return u
 
 
+x1 = np.arange(0.01, 100 + h1, h1)
 
-x1= np.arange(0.01,100+h1,h1)
+# Solve using Newton's method
+u1 = correct_Newton(5, m, c, p, h1, 5/h1 - 1)
 
-u1 = correct_Newton( 5, m, c, p, h1, 5/h1-1)
 
-
-#calculates residuals of the solution if needed
+# Compute residuals of the final solution
 n = len(u1)
 res = np.zeros(n)
-res[0] = c*(u1[0]**3) + p*u1[0] - (m**2)*u1[0]
-res[n-1] = c*(u1[n-1]**3) - (m**2)*u1[n-1] - (1/h1**2)*(v-2*u1[n-1]+u1[n-2]) - 1/(h1*x1[n-1])*(v-u1[n-2])
-for l in range(1, math.floor(5/h1-1)):
-    res[l] = c*(u1[l]**3) + p*u1[l] - (m**2)*u1[l] - (1/h1**2)*(u1[l+1]-2*u1[l]+u1[l-1]) - 1/(h1*x1[l])*(u1[l+1]-u1[l-1])
-for l in range(math.floor(5/h1-1), n-1):
-    res[l] = c*(u1[l]**3) - (m**2)*u1[l] - (1/h1**2)*(u1[l+1]-2*u1[l]+u1[l-1]) - 1/(h1*x1[l])*(u1[l+1]-u1[l-1])
 
+# Left boundary residual
+res[0] = c*u1[0]**3 + p*u1[0] - m**2*u1[0]
 
+# Right boundary residual
+res[n-1] = (c*u1[n-1]**3
+            - m**2*u1[n-1]
+            - (1/h1**2)*(v - 2*u1[n-1] + u1[n-2])
+            - (1/(h1*x1[n-1]))*(v - u1[n-2]))
 
+# Residual inside density region
+for i in range(1, math.floor(5/h1 - 1)):
+    res[i] = (c*u1[i]**3
+              + p*u1[i]
+              - m**2*u1[i]
+              - (1/h1**2)*(u1[i+1] - 2*u1[i] + u1[i-1])
+              - (1/(h1*x1[i]))*(u1[i+1] - u1[i-1]))
 
-
-
-
-
-
-
-
-
-
+# Residual outside density region
+for i in range(math.floor(5/h1 - 1), n-1):
+    res[i] = (c*u1[i]**3
+              - m**2*u1[i]
+              - (1/h1**2)*(u1[i+1] - 2*u1[i] + u1[i-1])
+              - (1/(h1*x1[i]))*(u1[i+1] - u1[i-1]))
