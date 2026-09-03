@@ -148,15 +148,6 @@ for i in range(math.floor(5/h1 - 1), n-1):
               - (1/h1**2)*(u1[i+1] - 2*u1[i] + u1[i-1])
               - (1/(h1*x1[i]))*(u1[i+1] - u1[i-1]))
     
-plt.figure(figsize=(10, 6))
-plt.plot(x1, u1, label='Field Profile $u(r)$', color='blue')
-plt.title('Classical Symmetron Field Profile')
-plt.xlabel('Radial Distance $r$')
-plt.ylabel('Field Value $u(r)$')
-plt.grid()
-plt.legend()
-plt.show()
-
 print("Saving to CSV...")
 # Save the numerical solution to a CSV file
 data = np.column_stack((x1, u1, res))
@@ -169,3 +160,13 @@ np.savetxt(
     comments=''
 )
 print("CSV saved!")
+
+plt.figure(figsize=(10, 6))
+plt.plot(x1, u1, label='Field Profile $u(r)$', color='blue')
+plt.title('Classical Symmetron Field Profile')
+plt.xlabel('Radial Distance $r$')
+plt.ylabel('Field Value $u(r)$')
+plt.grid()
+plt.legend()
+plt.show()
+
