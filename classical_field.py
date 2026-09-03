@@ -156,3 +156,16 @@ plt.ylabel('Field Value $u(r)$')
 plt.grid()
 plt.legend()
 plt.show()
+
+print("Saving to CSV...")
+# Save the numerical solution to a CSV file
+data = np.column_stack((x1, u1, res))
+
+np.savetxt(
+    'classical_field_profile.csv',
+    data,
+    delimiter=',',
+    header='r,u,residual',
+    comments=''
+)
+print("CSV saved!")
