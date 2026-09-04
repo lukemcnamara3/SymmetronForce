@@ -19,7 +19,7 @@ h1 = 0.01
 m = 0.5
 c = 1
 v = np.sqrt(m**2 / c)
-p = 2.5
+p = 0.1
 
 
 def correct_Newton(k, mass, coupling_constant, density, h, density_index):
